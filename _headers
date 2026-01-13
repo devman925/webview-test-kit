@@ -1,0 +1,4 @@
+/download/*
+  Content-Disposition: attachment
+  Content-Type: application/octet-stream
+  Cache-Control: no-store

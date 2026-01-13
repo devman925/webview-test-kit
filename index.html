@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>WebView Test Page (Android / iOS)</title>
+    <style>
+        :root {
+            --gap: 12px;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Apple SD Gothic Neo, "Noto Sans KR", sans-serif;
+            margin: 0;
+            padding: 16px;
+        }
+
+        h1 {
+            font-size: 20px;
+            margin: 0 0 12px;
+        }
+
+        h2 {
+            font-size: 16px;
+            margin: 18px 0 10px;
+        }
+
+        .row {
+            display: flex;
+            gap: var(--gap);
+            flex-wrap: wrap;
+        }
+
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 12px;
+            flex: 1 1 320px;
+            min-width: 280px;
+        }
+
+        .btn {
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid #aaa;
+            background: #f7f7f7;
+            cursor: pointer;
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        code,
+        pre {
+            background: #1111;
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+
+        pre {
+            padding: 10px;
+            overflow: auto;
+        }
+
+        .log {
+            height: 220px;
+            overflow: auto;
+            border: 1px dashed #aaa;
+            border-radius: 10px;
+            padding: 10px;
+            background: #00000008;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #bbb;
+            box-sizing: border-box;
+        }
+
+        .kv {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 6px 12px;
+            align-items: start;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 3px 8px;
+            border: 1px solid #aaa;
+            border-radius: 999px;
+            font-size: 12px;
+        }
+
+        .warn {
+            color: #b45309;
+        }
+
+        .ok {
+            color: #15803d;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>WebView Test Page <span class="pill" id="uaPill">UA</span></h1>
+
+    <div class="card">
+        <div class="kv">
+            <div>userAgent</div>
+            <div><code id="ua"></code></div>
+            <div>platform</div>
+            <div><code id="platform"></code></div>
+            <div>language</div>
+            <div><code id="lang"></code></div>
+            <div>cookieEnabled</div>
+            <div><code id="cookieEnabled"></code></div>
+            <div>viewport</div>
+            <div><code id="vp"></code></div>
+            <div>safe-area</div>
+            <div><code id="safearea"></code></div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="card">
+            <h2>1) Console / Error / Promise</h2>
+            <div class="row">
+                <button class="btn" onclick="testConsole()">console.log/warn/error</button>
+                <button class="btn" onclick="throwError()">throw Error</button>
+                <button class="btn" onclick="testPromise()">unhandledrejection</button>
+            </div>
+            <p class="warn">※ WebView에서 console 출력이 실제로 보이는지(디버그 연결) 확인</p>
+        </div>
+
+        <div class="card">
+            <h2>2) Storage</h2>
+            <div class="row">
+                <button class="btn" onclick="testLocalStorage()">localStorage</button>
+                <button class="btn" onclick="testSessionStorage()">sessionStorage</button>
+                <button class="btn" onclick="testIndexedDB()">IndexedDB</button>
+            </div>
+            <div id="storageResult"></div>
+        </div>
+
+        <div class="card">
+            <h2>3) Cookies</h2>
+            <div class="row">
+                <button class="btn" onclick="setCookie()">Set Cookie</button>
+                <button class="btn" onclick="readCookie()">Read Cookie</button>
+                <button class="btn" onclick="clearCookie()">Clear Cookie</button>
+            </div>
+            <div id="cookieResult"></div>
+            <p class="warn">iOS WKWebView는 쿠키/스토리지 정책이 앱 설정에 따라 달라질 수 있어요.</p>
+        </div>
+
+        <div class="card">
+            <h2>4) Fetch / CORS / JSON</h2>
+            <div class="row">
+                <button class="btn" onclick="testFetch()">fetch GET</button>
+                <button class="btn" onclick="testFetchPost()">fetch POST</button>
+            </div>
+            <p>기본은 <code>https://httpbin.org</code>를 호출합니다(네트워크 허용 필요).</p>
+        </div>
+
+        <div class="card">
+            <h2>5) File / Input / Camera</h2>
+            <input type="file" id="file" accept="image/*" />
+            <p class="warn">카메라/앨범 호출은 WebView 설정(권한, file chooser 구현)에 영향 큼</p>
+            <div id="fileInfo"></div>
+        </div>
+
+        <div class="card">
+            <h2>6) Deep Link / 외부 앱 호출</h2>
+            <div class="row">
+                <button class="btn" onclick="openUrl('tel:01012345678')">tel:</button>
+                <button class="btn" onclick="openUrl('sms:01012345678')">sms:</button>
+                <button class="btn" onclick="openUrl('mailto:test@example.com')">mailto:</button>
+                <button class="btn" onclick="openUrl('intent://example.com#Intent;scheme=https;end')">intent:</button>
+            </div>
+            <p class="warn">iOS는 intent 스킴이 동작하지 않습니다. 앱에서 별도 처리 필요.</p>
+        </div>
+
+        <div class="card">
+            <h2>7) History / Navigation</h2>
+            <div class="row">
+                <button class="btn" onclick="pushState()">history.pushState</button>
+                <button class="btn" onclick="replaceState()">history.replaceState</button>
+                <button class="btn" onclick="history.back()">history.back()</button>
+            </div>
+            <p>SPA 라우팅/뒤로가기 이슈를 간단히 확인</p>
+        </div>
+
+        <div class="card">
+            <h2>8) Viewport / Keyboard</h2>
+            <textarea id="ta" rows="4" placeholder="여기에 입력하고 키보드 올라올 때 레이아웃/스크롤 확인"></textarea>
+            <div class="row" style="margin-top:8px;">
+                <button class="btn" onclick="scrollInto()">scrollIntoView()</button>
+                <button class="btn" onclick="focusTa()">focus()</button>
+            </div>
+            <p class="warn">iOS는 키보드/viewport 동작이 특히 다릅니다(visualViewport 유무).</p>
+        </div>
+
+        <div class="card">
+            <h2>9) JS Dialogs (alert/confirm/prompt) & Notifications</h2>
+
+            <div class="row">
+                <button class="btn" onclick="testAlert()">alert()</button>
+                <button class="btn" onclick="testConfirm()">confirm()</button>
+                <button class="btn" onclick="testPrompt()">prompt()</button>
+            </div>
+
+            <div style="margin-top:10px;" class="kv">
+                <div>dialog result</div>
+                <div><code id="dialogResult">(n/a)</code></div>
+
+                <div>Notification</div>
+                <div>
+                    <code id="notiState">checking...</code>
+                </div>
+            </div>
+
+            <div class="row" style="margin-top:10px;">
+                <button class="btn" onclick="checkNotificationSupport()">지원 여부/상태</button>
+                <button class="btn" onclick="requestNotiPermission()">권한 요청</button>
+                <button class="btn" onclick="showNotification()">알림 띄우기</button>
+            </div>
+
+            <p class="warn" style="margin-top:10px;">
+                iOS WKWebView에서 alert/confirm/prompt가 안 뜨면 앱에서 WKUIDelegate 처리 필요. <br />
+                Notification은 HTTPS/정책에 따라 차단될 수 있음.
+            </p>
+
+            <details>
+                <summary>iOS/Android 네이티브에서 처리해야 하는 경우 (힌트)</summary>
+                <pre>
+iOS(WKWebView):
+- alert/confirm/prompt:
+  WKUIDelegate 구현 (runJavaScriptAlertPanel..., runJavaScriptConfirmPanel..., runJavaScriptTextInputPanel...)
+- Notification:
+  보통 WKWebView 자체에서 웹 푸시가 제한적일 수 있고,
+  Safari와 정책이 다를 수 있음(기기/OS/앱 설정에 영향)
+
+Android(WebView):
+- alert/confirm/prompt:
+  WebChromeClient의 onJsAlert/onJsConfirm/onJsPrompt 구현
+        </pre>
+            </details>
+        </div>
+
+        <div class="card">
+            <h2>10) PostMessage / Bridge (샘플)</h2>
+            <div class="row">
+                <button class="btn" onclick="postToParent()">window.postMessage</button>
+                <button class="btn" onclick="callNativeBridge()">call native bridge</button>
+            </div>
+            <pre id="bridgeHint"></pre>
+            <p class="warn">앱에서 JS bridge를 심어두면 여기서 호출 테스트 가능</p>
+        </div>
+
+        <div class="card">
+            <h2>11) Log</h2>
+            <div class="row">
+                <button class="btn" onclick="clearLog()">Clear</button>
+                <button class="btn" onclick="dumpInfo()">Dump env</button>
+            </div>
+            <div class="log" id="log"></div>
+        </div>
+
+        <!-- ✅ 추가: Download 테스트 -->
+        <div class="card">
+            <h2>12) Download (attachment / 파일 저장)</h2>
+            <div class="row">
+                <a class="btn" href="/download/test.txt">/download/test.txt</a>
+                <a class="btn" href="/download/test.bin">/download/test.bin</a>
+                <button class="btn" onclick="downloadByLocation('/download/test.txt')">location.href(txt)</button>
+                <button class="btn" onclick="downloadByLocation('/download/test.bin')">location.href(bin)</button>
+            </div>
+
+            <div class="kv" style="margin-top:10px;">
+                <div>download hint</div>
+                <div>
+                    <code>
+            서버 응답에 Content-Disposition: attachment 가 있어야 WebView가 다운로드로 인식하는 경우가 많음
+          </code>
+                </div>
+            </div>
+
+            <p class="warn" style="margin-top:10px;">
+                ※ GitHub Pages는 헤더 설정이 어려워 attachment 테스트가 불안정할 수 있어요. <br />
+                Cloudflare Pages에서는 루트의 <code>_headers</code> 파일로 <code>/download/*</code>에 attachment 헤더를 붙여 테스트합니다.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const logEl = $("log");
+        function log(...args) {
+            const msg = args.map(a => typeof a === "string" ? a : JSON.stringify(a, null, 2)).join(" ");
+            const line = document.createElement("div");
+            line.textContent = `[${new Date().toISOString()}] ${msg}`;
+            logEl.appendChild(line);
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(...args);
+        }
+        function clearLog() { logEl.innerHTML = ""; }
+
+        function initInfo() {
+            $("ua").textContent = navigator.userAgent;
+            $("platform").textContent = navigator.platform || "(n/a)";
+            $("lang").textContent = navigator.language;
+            $("cookieEnabled").textContent = String(navigator.cookieEnabled);
+            $("vp").textContent = `${window.innerWidth}x${window.innerHeight} DPR:${window.devicePixelRatio}`;
+            const vv = window.visualViewport;
+            $("safearea").textContent =
+                `top:${getCssVar("--sat")} / visualViewport:${vv ? "yes" : "no"}`;
+            $("uaPill").textContent = /Android/i.test(navigator.userAgent) ? "Android" : (/iPhone|iPad|iPod/i.test(navigator.userAgent) ? "iOS" : "Other");
+
+            $("bridgeHint").textContent = `
+브릿지 호출 예시:
+- Android: window.Android?.someMethod("hi")
+- iOS WKWebView: window.webkit?.messageHandlers?.someHandler?.postMessage({text:"hi"})
+앱 쪽 네이티브에서 위 객체를 주입/등록해야 동작합니다.
+`.trim();
+
+            checkNotificationSupport();
+        }
+        function getCssVar(name) {
+            return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "(n/a)";
+        }
+
+        // 1) Console/Error
+        function testConsole() {
+            console.log("console.log OK");
+            console.warn("console.warn OK");
+            console.error("console.error OK");
+            log("console.* called. (Check remote debug output)");
+        }
+        function throwError() {
+            log("About to throw error...");
+            throw new Error("Test Error from WebView page");
+        }
+        function testPromise() {
+            log("Create unhandled rejected promise...");
+            Promise.reject(new Error("Unhandled rejection test"));
+        }
+        window.addEventListener("error", (e) => log("window.onerror:", { message: e.message, filename: e.filename, lineno: e.lineno, colno: e.colno }));
+        window.addEventListener("unhandledrejection", (e) => log("unhandledrejection:", String(e.reason)));
+
+        // 2) Storage
+        function testLocalStorage() {
+            try {
+                const k = "wv_ls", v = String(Date.now());
+                localStorage.setItem(k, v);
+                $("storageResult").innerHTML = `<p class="ok">localStorage OK: ${k}=${localStorage.getItem(k)}</p>`;
+                log("localStorage OK", { k, v });
+            } catch (err) {
+                $("storageResult").innerHTML = `<p class="warn">localStorage FAIL: ${err}</p>`;
+                log("localStorage FAIL", String(err));
+            }
+        }
+        function testSessionStorage() {
+            try {
+                const k = "wv_ss", v = String(Date.now());
+                sessionStorage.setItem(k, v);
+                $("storageResult").innerHTML = `<p class="ok">sessionStorage OK: ${k}=${sessionStorage.getItem(k)}</p>`;
+                log("sessionStorage OK", { k, v });
+            } catch (err) {
+                $("storageResult").innerHTML = `<p class="warn">sessionStorage FAIL: ${err}</p>`;
+                log("sessionStorage FAIL", String(err));
+            }
+        }
+        function testIndexedDB() {
+            const req = indexedDB.open("wv_idb", 1);
+            req.onupgradeneeded = () => {
+                const db = req.result;
+                db.createObjectStore("kv");
+            };
+            req.onsuccess = () => {
+                const db = req.result;
+                const tx = db.transaction("kv", "readwrite");
+                tx.objectStore("kv").put(Date.now(), "ts");
+                tx.oncomplete = () => { db.close(); $("storageResult").innerHTML = `<p class="ok">IndexedDB OK</p>`; log("IndexedDB OK"); };
+                tx.onerror = () => { $("storageResult").innerHTML = `<p class="warn">IndexedDB FAIL: ${tx.error}</p>`; log("IndexedDB FAIL", String(tx.error)); };
+            };
+            req.onerror = () => { $("storageResult").innerHTML = `<p class="warn">IndexedDB FAIL: ${req.error}</p>`; log("IndexedDB FAIL", String(req.error)); };
+        }
+
+        // 3) Cookies
+        function setCookie() {
+            document.cookie = `wv_cookie=hello_${Date.now()}; path=/; SameSite=Lax`;
+            log("Set cookie:", document.cookie);
+            $("cookieResult").innerHTML = `<p>cookie now: <code>${escapeHtml(document.cookie)}</code></p>`;
+        }
+        function readCookie() {
+            log("Read cookie:", document.cookie);
+            $("cookieResult").innerHTML = `<p>cookie: <code>${escapeHtml(document.cookie)}</code></p>`;
+        }
+        function clearCookie() {
+            document.cookie = "wv_cookie=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+            log("Cleared cookie. Now:", document.cookie);
+            $("cookieResult").innerHTML = `<p>cookie now: <code>${escapeHtml(document.cookie)}</code></p>`;
+        }
+
+        // 4) Fetch
+        async function testFetch() {
+            try {
+                const r = await fetch("https://httpbin.org/get", { method: "GET" });
+                const j = await r.json();
+                log("fetch GET status", r.status, j.url);
+            } catch (err) {
+                log("fetch GET FAIL", String(err));
+            }
+        }
+        async function testFetchPost() {
+            try {
+                const r = await fetch("https://httpbin.org/post", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ts: Date.now(), hello: "webview" })
+                });
+                const j = await r.json();
+                log("fetch POST status", r.status, j.json);
+            } catch (err) {
+                log("fetch POST FAIL", String(err));
+            }
+        }
+
+        // 5) File input
+        $("file").addEventListener("change", (e) => {
+            const f = e.target.files?.[0];
+            if (!f) { $("fileInfo").textContent = ""; return; }
+            $("fileInfo").innerHTML = `<p>name: <code>${escapeHtml(f.name)}</code></p>
+      <p>type: <code>${escapeHtml(f.type)}</code></p>
+      <p>size: <code>${f.size}</code> bytes</p>`;
+            log("file selected", { name: f.name, type: f.type, size: f.size });
+        });
+
+        // 6) Deep link
+        function openUrl(u) {
+            log("navigate to:", u);
+            location.href = u;
+        }
+
+        // 7) History
+        function pushState() {
+            history.pushState({ t: Date.now() }, "", "#pushed_" + Date.now());
+            log("pushState", location.href);
+        }
+        function replaceState() {
+            history.replaceState({ t: Date.now() }, "", "#replaced_" + Date.now());
+            log("replaceState", location.href);
+        }
+        window.addEventListener("popstate", (e) => log("popstate", e.state));
+
+        // 8) Keyboard/viewport helpers
+        function scrollInto() { $("ta").scrollIntoView({ behavior: "smooth", block: "center" }); log("scrollIntoView"); }
+        function focusTa() { $("ta").focus(); log("focus()"); }
+
+        // 9) JS Dialogs
+        function setDialogResult(v) {
+            $("dialogResult").textContent = v;
+        }
+        function testAlert() {
+            log("alert() requested");
+            alert("WebView alert 테스트입니다.");
+            setDialogResult("alert closed");
+            log("alert() closed");
+        }
+        function testConfirm() {
+            log("confirm() requested");
+            const ok = confirm("confirm 테스트: 확인을 누르면 true, 취소를 누르면 false");
+            setDialogResult("confirm => " + ok);
+            log("confirm result", ok);
+        }
+        function testPrompt() {
+            log("prompt() requested");
+            const val = prompt("prompt 테스트: 값을 입력해보세요", "hello");
+            setDialogResult("prompt => " + (val === null ? "null(취소)" : JSON.stringify(val)));
+            log("prompt result", val);
+        }
+
+        // 9) Notifications
+        function checkNotificationSupport() {
+            const el = $("notiState");
+            const supported = ("Notification" in window);
+            if (!supported) {
+                el.textContent = "Notification API: NOT supported";
+                log("Notification API not supported");
+                return;
+            }
+            el.textContent = `Notification API: supported, permission=${Notification.permission}`;
+            log("Notification permission", Notification.permission);
+        }
+        async function requestNotiPermission() {
+            try {
+                if (!("Notification" in window)) {
+                    log("Notification not supported");
+                    return;
+                }
+                log("Requesting notification permission...");
+                const result = await Notification.requestPermission();
+                $("notiState").textContent = `Notification API: supported, permission=${result}`;
+                log("Notification permission result", result);
+            } catch (err) {
+                log("Notification permission FAIL", String(err));
+            }
+        }
+        function showNotification() {
+            try {
+                if (!("Notification" in window)) {
+                    log("Notification not supported");
+                    return;
+                }
+                if (Notification.permission !== "granted") {
+                    log("Notification permission is not granted:", Notification.permission);
+                    alert("Notification 권한이 granted가 아닙니다: " + Notification.permission);
+                    return;
+                }
+                const n = new Notification("WebView Notification 테스트", {
+                    body: "이 알림이 뜨면 Notification API가 동작하는 환경입니다.",
+                    tag: "wv-test-" + Date.now()
+                });
+                n.onclick = () => log("Notification clicked");
+                log("Notification shown");
+            } catch (err) {
+                log("Notification show FAIL", String(err));
+            }
+        }
+
+        // 10) Bridge examples
+        function postToParent() {
+            window.postMessage({ type: "WV_TEST", ts: Date.now() }, "*");
+            log("window.postMessage sent");
+        }
+        function callNativeBridge() {
+            try {
+                if (window.Android?.someMethod) {
+                    window.Android.someMethod("Hello from WebView test page");
+                    log("Android bridge called");
+                } else if (window.webkit?.messageHandlers?.someHandler) {
+                    window.webkit.messageHandlers.someHandler.postMessage({ text: "Hello from WebView test page", ts: Date.now() });
+                    log("iOS bridge postMessage called");
+                } else {
+                    log("No native bridge found. (Define window.Android.someMethod or window.webkit.messageHandlers.someHandler)");
+                }
+            } catch (err) {
+                log("Bridge call FAIL", String(err));
+            }
+        }
+
+        // ✅ 12) Download helpers
+        function downloadByLocation(path) {
+            log("download via location.href:", path);
+            location.href = path;
+        }
+
+        function dumpInfo() {
+            const vv = window.visualViewport;
+            log("env", {
+                ua: navigator.userAgent,
+                platform: navigator.platform,
+                lang: navigator.language,
+                cookies: navigator.cookieEnabled,
+                inner: { w: innerWidth, h: innerHeight, dpr: devicePixelRatio },
+                visualViewport: vv ? { w: vv.width, h: vv.height, scale: vv.scale, offsetTop: vv.offsetTop, offsetLeft: vv.offsetLeft } : null,
+                notification: ("Notification" in window) ? { permission: Notification.permission } : null
+            });
+        }
+
+        function escapeHtml(s) {
+            return (s ?? "").replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        }
+
+        initInfo();
+    </script>
+
+    <style>
+        :root {
+            --sat: env(safe-area-inset-top);
+            --sar: env(safe-area-inset-right);
+            --sab: env(safe-area-inset-bottom);
+            --sal: env(safe-area-inset-left);
+        }
+
+        body {
+            padding-top: calc(16px + var(--sat));
+            padding-right: calc(16px + var(--sar));
+            padding-bottom: calc(16px + var(--sab));
+            padding-left: calc(16px + var(--sal));
+        }
+    </style>
+
+</body>
+
+</html>
