@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Pay Return</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", sans-serif;
+            padding: 16px;
+        }
+
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 12px;
+            max-width: 720px;
+            margin: auto;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .btn {
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid #aaa;
+            background: #f7f7f7;
+            cursor: pointer;
+        }
+
+        code {
+            background: #0001;
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <h1 style="margin:0 0 8px;">Payment Return</h1>
+        <div>orderId: <code id="orderId"></code></div>
+        <div>status: <code id="status"></code></div>
+        <div>txid: <code id="txid"></code></div>
+        <div>pg: <code id="pg"></code></div>
+
+        <div class="row">
+            <button class="btn" onclick="notifyWeb()">WebView에 결과 전달(JS Event)</button>
+            <button class="btn" onclick="tryDeepLink()">앱으로 복귀(딥링크 시도)</button>
+        </div>
+
+        <p style="margin-top:12px;">
+            실제 서비스에서는 여기서 “서버에 결제상태 조회” 후 UI를 확정하는 구조가 안전합니다.
+        </p>
+    </div>
+
+    <script>
+        const qs = new URLSearchParams(location.search);
+        const data = {
+            orderId: qs.get("orderId") || "",
+            status: qs.get("status") || "",
+            txid: qs.get("txid") || "",
+            pg: qs.get("pg") || "",
+            deepLink: qs.get("deepLink") || ""
+        };
+
+        for (const k of ["orderId", "status", "txid", "pg"]) {
+            document.getElementById(k).textContent = data[k] || "(n/a)";
+        }
+
+        // ✅ WebView로 결과 전달(웹앱에서 이 이벤트 받아서 처리)
+        function notifyWeb() {
+            const payload = { type: "PAY_RESULT", ...data, ts: Date.now() };
+            window.dispatchEvent(new CustomEvent("PAY_RESULT", { detail: payload }));
+            // 혹시 상위 프레임/앱 브릿지가 있으면 postMessage도 같이
+            window.postMessage(payload, "*");
+            alert("PAY_RESULT 이벤트/메시지 전송 완료");
+        }
+
+        // ✅ 앱으로 복귀 딥링크(옵션)
+        function tryDeepLink() {
+            if (!data.deepLink) {
+                alert("deepLink 파라미터가 없습니다. index.html에서 deepLink 입력 후 테스트하세요.");
+                return;
+            }
+            // 예: myapp://pay/return?orderId=...&status=...
+            const u = new URL(data.deepLink);
+            u.searchParams.set("orderId", data.orderId);
+            u.searchParams.set("status", data.status);
+            u.searchParams.set("txid", data.txid);
+            location.href = u.toString();
+        }
+    </script>
+</body>
+
+</html>

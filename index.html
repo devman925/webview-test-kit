@@ -298,6 +298,32 @@ Android(WebView):
                 Cloudflare Pages에서는 루트의 <code>_headers</code> 파일로 <code>/download/*</code>에 attachment 헤더를 붙여 테스트합니다.
             </p>
         </div>
+
+        <!-- ✅ 13) External Browser PG Payment (Fake) -->
+        <div class="card">
+            <h2>12) External Browser PG Payment (Fake)</h2>
+
+            <div class="kv">
+                <div>Order ID</div>
+                <div><input id="orderId" placeholder="자동 생성" /></div>
+
+                <div>Return URL</div>
+                <div><code id="returnUrl"></code></div>
+
+                <div>Deep link (옵션)</div>
+                <div><input id="deepLink" placeholder="예: myapp://pay/return" /></div>
+            </div>
+
+            <div class="row" style="margin-top:10px;">
+                <button class="btn" onclick="startFakePay_sameTab()">Start (same tab)</button>
+                <button class="btn" onclick="startFakePay_newTab()">Start (new tab / window.open)</button>
+            </div>
+
+            <p class="warn" style="margin-top:10px;">
+                앱(WebView)에서 <code>/pg/fake-checkout.html</code> 로 이동 시도를 감지해서<br />
+                외부 브라우저(SFSafariViewController / Custom Tabs)로 열어주면 “외부결제” 흐름을 테스트할 수 있습니다.
+            </p>
+        </div>
     </div>
 
     <script>
@@ -579,6 +605,48 @@ Android(WebView):
         function escapeHtml(s) {
             return (s ?? "").replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
         }
+
+        // 13)--- Fake PG helpers ---
+        function ensureOrderId() {
+            const el = document.getElementById("orderId");
+            if (!el.value) el.value = "ORD-" + Date.now();
+            return el.value;
+        }
+        function buildReturnUrl(orderId) {
+            const url = new URL(location.origin + "/pay/return.html");
+            url.searchParams.set("orderId", orderId);
+            return url.toString();
+        }
+        function buildFakeCheckoutUrl(orderId) {
+            const deep = document.getElementById("deepLink").value.trim();
+            const checkout = new URL(location.origin + "/pg/fake-checkout.html");
+            checkout.searchParams.set("orderId", orderId);
+            checkout.searchParams.set("returnUrl", buildReturnUrl(orderId));
+            if (deep) checkout.searchParams.set("deepLink", deep);
+            return checkout.toString();
+        }
+
+        function startFakePay_sameTab() {
+            const orderId = ensureOrderId();
+            const url = buildFakeCheckoutUrl(orderId);
+            document.getElementById("returnUrl").textContent = buildReturnUrl(orderId);
+            log("FAKE PAY start (same tab):", url);
+            location.href = url; // ✅ 앱에서 이 이동을 intercept 해서 외부브라우저로 열면 됨
+        }
+
+        function startFakePay_newTab() {
+            const orderId = ensureOrderId();
+            const url = buildFakeCheckoutUrl(orderId);
+            document.getElementById("returnUrl").textContent = buildReturnUrl(orderId);
+            log("FAKE PAY start (window.open):", url);
+            window.open(url, "_blank"); // ✅ target=_blank 처리 테스트(앱쪽에서 외부브라우저로)
+        }
+
+        // init default return url
+        (function initFakePay() {
+            const orderId = ensureOrderId();
+            document.getElementById("returnUrl").textContent = buildReturnUrl(orderId);
+        })();
 
         initInfo();
     </script>

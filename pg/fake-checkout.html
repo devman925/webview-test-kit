@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Fake PG Checkout</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", sans-serif;
+            padding: 16px;
+        }
+
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 12px;
+            max-width: 720px;
+            margin: auto;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .btn {
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid #aaa;
+            background: #f7f7f7;
+            cursor: pointer;
+        }
+
+        code {
+            background: #0001;
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <h1 style="margin:0 0 8px;">Fake PG Checkout</h1>
+        <div>orderId: <code id="orderId"></code></div>
+        <div style="margin-top:6px;">returnUrl: <code id="returnUrl"></code></div>
+        <div style="margin-top:6px;">deepLink(옵션): <code id="deepLink">(none)</code></div>
+
+        <div class="row">
+            <button class="btn" onclick="goResult('success')">결제 성공</button>
+            <button class="btn" onclick="goResult('fail')">결제 실패</button>
+            <button class="btn" onclick="goResult('cancel')">사용자 취소</button>
+        </div>
+
+        <p style="margin-top:12px;">
+            이 페이지는 “PG 결제창” 역할만 흉내냅니다.<br />
+            버튼 클릭 시 <code>returnUrl</code>로 리다이렉트합니다.
+        </p>
+    </div>
+
+    <script>
+        const qs = new URLSearchParams(location.search);
+        const orderId = qs.get("orderId") || "ORD-UNKNOWN";
+        const returnUrl = qs.get("returnUrl") || (location.origin + "/pay/return.html");
+        const deepLink = qs.get("deepLink") || "";
+
+        document.getElementById("orderId").textContent = orderId;
+        document.getElementById("returnUrl").textContent = returnUrl;
+        document.getElementById("deepLink").textContent = deepLink || "(none)";
+
+        function goResult(status) {
+            const u = new URL(returnUrl);
+            u.searchParams.set("status", status);
+            u.searchParams.set("txid", "T-" + Date.now());         // 가짜 거래ID
+            u.searchParams.set("pg", "FAKE_PG");                   // 가짜 PG명
+            if (deepLink) u.searchParams.set("deepLink", deepLink); // 복귀 딥링크 전달
+            location.href = u.toString();
+        }
+    </script>
+</body>
+
+</html>
