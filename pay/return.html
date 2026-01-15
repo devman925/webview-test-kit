@@ -67,7 +67,7 @@
             status: qs.get("status") || "",
             txid: qs.get("txid") || "",
             pg: qs.get("pg") || "",
-            deepLink: qs.get("deepLink") || ""
+            deepLink: qs.get("deepLink") || "webviewtest://pay/return"
         };
 
         for (const k of ["orderId", "status", "txid", "pg"]) {
